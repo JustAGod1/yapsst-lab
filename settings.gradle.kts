@@ -1,1 +1,1 @@
-rootProject.name = "stella-implementation-in-kotlin"
+rootProject.name = "yapsst-lab"
