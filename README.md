@@ -1,4 +1,11 @@
-# stella-implementation-in-kotlin
-Template for an implementation of Stella in Kotlin.
+# How to build?
 
-![Screenshot from Intellij IDEA.](images/idea-demo.png)
+```sh
+./gradlew build
+```
+
+# How to run?
+
+```sh
+./gradlew run
+```
