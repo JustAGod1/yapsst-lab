@@ -10,6 +10,7 @@ import org.syntax.stella.Absyn.TypeFun
 import org.syntax.stella.Absyn.TypeList
 import org.syntax.stella.Absyn.TypeNat
 import org.syntax.stella.Absyn.TypeRecord
+import org.syntax.stella.Absyn.TypeRef
 import org.syntax.stella.Absyn.TypeSum
 import org.syntax.stella.Absyn.TypeTuple
 import org.syntax.stella.Absyn.TypeUnit
@@ -25,15 +26,21 @@ sealed class StellaType(private val desc: String) {
     object Unit : StellaType("Unit")
     object Bool : StellaType("Bool")
 
-    data class Record(val members: KtList<Pair<String, StellaType>>) : StellaType("{" + members.joinToString { (a, b) -> "$a: $b" } + "}")
+    data class Record(val members: KtList<Pair<String, StellaType>>) :
+        StellaType("{" + members.joinToString { (a, b) -> "$a: $b" } + "}")
+
     data class Tuple(val members: KtList<StellaType>) : StellaType("{" + members.joinToString() + "}")
     data class List(val type: StellaType) : StellaType("[$type]")
+    data class Reference(val underlyingType: StellaType) : StellaType("*$underlyingType")
     data class Sum(val a: StellaType, val b: StellaType) : StellaType("$a + $b")
-    data class Variant(val members: KtList<Pair<String, StellaType?>>) : StellaType("<|" + members.joinToString { (a, b) -> "$a: $b" } + "|>")
-    data class Fun(val args: KtList<StellaType>, val returnType: StellaType) : StellaType("(" + args.joinToString() + ") -> " + returnType)
+    data class Variant(val members: KtList<Pair<String, StellaType?>>) :
+        StellaType("<|" + members.joinToString { (a, b) -> "$a: $b" } + "|>")
+
+    data class Fun(val args: KtList<StellaType>, val returnType: StellaType) :
+        StellaType("(" + args.joinToString() + ") -> " + returnType)
 
     companion object {
-        fun fromAst(t: Type) : StellaType {
+        fun fromAst(t: Type): StellaType {
             return when (t) {
                 is TypeNat -> Nat
                 is TypeBool -> Bool
@@ -56,6 +63,7 @@ sealed class StellaType(private val desc: String) {
                 })
 
                 is TypeFun -> Fun(t.listtype_.map(::fromAst), fromAst(t.type_))
+                is TypeRef -> Reference(fromAst(t.type_))
 
                 else -> error("Type ${t.javaClass.simpleName} is not supported")
             }
