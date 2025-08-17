@@ -7,11 +7,11 @@ import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.atn.ATNConfigSet
 import org.stella.eval.Eval
 import org.stella.typecheck.TypeCheck
+import org.syntax.StellaLexer
+import org.syntax.StellaParser
 import org.syntax.stella.Absyn.Expr
 import org.syntax.stella.Absyn.Program
 import org.syntax.stella.PrettyPrinter
-import org.syntax.stella.stellaLexer
-import org.syntax.stella.stellaParser
 import java.io.IOException
 import java.util.*
 import kotlin.system.exitProcess
@@ -27,10 +27,10 @@ fun getInput(args: Array<String>): CharStream = try {
     exitProcess(1)
 }
 
-fun createParser(input: CharStream): stellaParser {
-    val l = stellaLexer((input))
+fun createParser(input: CharStream): StellaParser {
+    val l = StellaLexer((input))
     l.addErrorListener(BNFCErrorListener())
-    val p = stellaParser(CommonTokenStream(l))
+    val p = StellaParser(CommonTokenStream(l))
     p.addErrorListener(BNFCErrorListener())
     return p
 }
@@ -46,7 +46,7 @@ fun main(args: Array<String> = emptyArray()) {
         typechecker.typecheckProgram(ast)
         if (args.isNotEmpty()) {
             p = createParser(CharStreams.fromStream(System.`in`))
-            val ec: stellaParser.Start_ExprContext = p.start_Expr()
+            val ec: StellaParser.Start_ExprContext = p.start_Expr()
             val inputExpr: Expr = ec.result
             val resultExpr: Expr = evaluator.evalMainWith(ast, inputExpr)
             println(PrettyPrinter.print(resultExpr))

@@ -394,7 +394,7 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionTypeContext> {
         }
 
 
-        return t.members.getOrNull(p.offset)
+        return t.members.getOrNull(p.integer_)
             ?: TypeValidationException.errorTupleIndexOutOfBounds()
     }
 
