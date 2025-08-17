@@ -1,5 +1,11 @@
 language core;
 
+extend with #type-reconstruction;
+
+fn kek(a : auto) -> Nat {
+    return if a then 6 else 7
+}
+
 fn main(n : Nat) -> auto {
-  return 5;
+    return if n > 5 then 5 else 5
 }

@@ -42,8 +42,15 @@ enum class StellaExceptionCode {
     ERROR_UNEXPECTED_MEMORY_ADDRESS,
     ERROR_UNEXPECTED_SUBTYPE,
 
+    // Third Stage
+    ERROR_OCCURS_CHECK_INFINITE_TYPE,
+    ERROR_NOT_A_GENERIC_FUNCTION,
+    ERROR_INCORRECT_NUMBER_OF_TYPE_ARGUMENTS,
+    ERROR_UNDEFINED_TYPE_VARIABLE,
+
     // Extra
     ERROR_EXTENSION_IS_DISABLED,
+    ERROR_UNKNOWN_EXTENSION,
 }
 
 class TypeValidationException private constructor(
@@ -61,6 +68,10 @@ class TypeValidationException private constructor(
         fun errorExtensionIsDisabled(wantedExtension: String): Nothing = make(
             StellaExceptionCode.ERROR_EXTENSION_IS_DISABLED,
             "$wantedExtension is not enabled"
+        )
+        fun errorUnknownExtension(extensionName: String): Nothing = make(
+            StellaExceptionCode.ERROR_UNKNOWN_EXTENSION,
+            "$extensionName is not known"
         )
 
         // Stage 1
@@ -108,6 +119,12 @@ class TypeValidationException private constructor(
         fun errorNotAReference(): Nothing = make(StellaExceptionCode.ERROR_NOT_A_REFERENCE, null)
         fun errorUnexpectedMemoryAddress(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_MEMORY_ADDRESS, null)
         fun errorUnexpectedSubtype(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_SUBTYPE, null)
+
+        // Stage 3
+        fun errorOccursCheckInfiniteType(msg: String): Nothing = make(StellaExceptionCode.ERROR_OCCURS_CHECK_INFINITE_TYPE, msg)
+        fun errorNotAGenericFunction(): Nothing = make(StellaExceptionCode.ERROR_NOT_A_GENERIC_FUNCTION, null)
+        fun errorIncorrectNumberOfTypeArguments(): Nothing = make(StellaExceptionCode.ERROR_INCORRECT_NUMBER_OF_TYPE_ARGUMENTS, null)
+        fun errorUndefinedTypeVariable(): Nothing = make(StellaExceptionCode.ERROR_UNDEFINED_TYPE_VARIABLE, null)
     }
 }
 

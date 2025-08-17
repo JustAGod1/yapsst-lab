@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm") version "1.8.0"
     application
     antlr
+    idea
 }
 
 group = "org.stella"
@@ -22,7 +23,8 @@ dependencies {
 }
 
 val bnfcGenDir = rootProject.file("src/main/antlr").absoluteFile
-val antlrGenDir = layout.buildDirectory.file("generated-src/antlr").get().asFile.absoluteFile
+val antlrGenModule = layout.buildDirectory.file("generated-src/antlr/main").get().asFile.absoluteFile
+val antlrGenDir = antlrGenModule.resolve("org/syntax")
 
 println("bnfc = ${bnfcGenDir.path}")
 println("antlr = ${antlrGenDir.path}")
@@ -45,7 +47,7 @@ val genAntlrGrammar = tasks.create<Exec>("genAntlr4Grammar") {
 
 tasks.generateGrammarSource {
     maxHeapSize = "64m"
-    //outputDirectory = antlrGenDir
+    outputDirectory = antlrGenDir
     arguments = arguments + listOf("-Xexact-output-dir", "-visitor", "-package", "org.syntax")
     dependsOn(genAntlrGrammar)
     inputs.files(genAntlrGrammar)
@@ -70,4 +72,8 @@ application {
 
 tasks.named<JavaExec>("run") {
     standardInput = System.`in`
+}
+
+idea.module {
+    generatedSourceDirs = generatedSourceDirs + file(bnfcGenDir) + file(antlrGenModule)
 }

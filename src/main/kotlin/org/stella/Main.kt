@@ -54,11 +54,11 @@ fun main(args: Array<String> = emptyArray()) {
     } catch (e: TestError) {
         System.err.println("At line " + e.line + ", column " + e.column + " :")
         System.err.println("     " + e.message)
-        exitProcess(1)
+        throw RuntimeException(e)
     }
 }
 
-internal class TestError(msg: String?, var line: Int, var column: Int) : RuntimeException(msg)
+internal class TestError(msg: String?, var line: Int, var column: Int, cause: Throwable?) : RuntimeException(msg, cause)
 internal class BNFCErrorListener : ANTLRErrorListener {
     override fun syntaxError(
         recognizer: org.antlr.v4.runtime.Recognizer<*, *>?,
@@ -68,7 +68,7 @@ internal class BNFCErrorListener : ANTLRErrorListener {
         s: String,
         e: org.antlr.v4.runtime.RecognitionException
     ) {
-        throw TestError(s, i, i1)
+        throw TestError("$s\nOffending: $o", i, i1, e)
     }
 
     override fun reportAmbiguity(
@@ -80,7 +80,7 @@ internal class BNFCErrorListener : ANTLRErrorListener {
         bitSet: BitSet,
         atnConfigSet: ATNConfigSet
     ) {
-        throw TestError("Ambiguity at", i, i1)
+        throw TestError("Ambiguity at", i, i1, null)
     }
 
     override fun reportAttemptingFullContext(
