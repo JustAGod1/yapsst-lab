@@ -31,6 +31,12 @@ sealed class StellaType(private val desc: String, val hasAuto: Boolean) {
 
     abstract fun substitute(context: ReconstructionContext): StellaType
 
+    object Unknown : StellaType("Unknown", false) {
+        override fun substitute(context: ReconstructionContext): StellaType {
+            throw UnsupportedOperationException()
+        }
+    }
+
     object Nat : StellaType("Nat", false) {
         override fun substitute(context: ReconstructionContext): StellaType = this
     }
@@ -86,8 +92,10 @@ sealed class StellaType(private val desc: String, val hasAuto: Boolean) {
 
             if (that !is Tuple) return false
 
-            for (t in members) {
-                if (!that.members.any { t.isAssignableFrom(it) }) return false
+            if (that.members.size < members.size) return false
+
+            for ((i, t) in members.withIndex()) {
+                if (!t.isAssignableFrom(that.members[i])) return false
             }
             return true
         }
@@ -136,12 +144,12 @@ sealed class StellaType(private val desc: String, val hasAuto: Boolean) {
         }
     }
 
-    data class Variant(val members: KtList<Pair<String, StellaType?>>) :
-        StellaType("<|" + members.joinToString { (a, b) -> "$a: $b" } + "|>",
-            members.any { it.second?.hasAuto == true }) {
+    data class Variant(val members: Map<String, StellaType?>) :
+        StellaType("<|" + members.entries.joinToString { (a, b) -> "$a: $b" } + "|>",
+            members.any { it.value?.hasAuto == true }) {
         override fun substitute(context: ReconstructionContext): StellaType {
             return Variant(
-                members.map { it.first to it.second?.substitute(context) },
+                members.mapValues { it.value?.substitute(context) },
             )
         }
     }
@@ -150,6 +158,25 @@ sealed class StellaType(private val desc: String, val hasAuto: Boolean) {
         StellaType("(" + args.joinToString() + ") -> " + returnType, args.any { it.hasAuto } || returnType.hasAuto) {
         override fun substitute(context: ReconstructionContext): StellaType {
             return Fun(args.map { it.substitute(context) }, returnType.substitute(context))
+        }
+
+        override fun isAssignableFrom(that: StellaType): Boolean {
+            if (super.isAssignableFrom(that)) return true
+
+            if (that !is Fun) return false
+
+            if (this.args.size != that.args.size) return false
+
+            if (!that.returnType.isAssignableFrom(that.returnType)) return false
+
+            for (i in that.args.indices) {
+                val me = this.args[i]
+                val his = that.args[i]
+
+                if (!me.isAssignableFrom(his)) return false
+            }
+
+            return true
         }
     }
 
@@ -177,7 +204,7 @@ sealed class StellaType(private val desc: String, val hasAuto: Boolean) {
 
                 is TypeSum -> Sum(fromAst(t.type_1, context), fromAst(t.type_2, context))
 
-                is TypeVariant -> Variant(t.listvariantfieldtype_.map {
+                is TypeVariant -> Variant(t.listvariantfieldtype_.associate {
                     it as AVariantFieldType
                     it.stellaident_ to if (it.optionaltyping_ is SomeTyping) fromAst(
                         it.optionaltyping_.type_,

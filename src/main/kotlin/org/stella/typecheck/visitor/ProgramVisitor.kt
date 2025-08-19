@@ -13,14 +13,14 @@ class ProgramVisitor : Program.Visitor<Unit, Unit> {
         StellaExtension.LET_BINDINGS,
     )
 
-    private fun parseExtensions(data: List<Extension>) : Set<StellaExtension> {
+    private fun parseExtensions(data: List<Extension>): Set<StellaExtension> {
         val extensionNames = data.flatMap {
             it as AnExtension
             it.listextensionname_
         }
         val result = hashSetOf<StellaExtension>()
         for (extension in extensionNames) {
-            val parsed = StellaExtension.values().find { extension == "#${it.extensionName}" }
+            val parsed = StellaExtension.values().find { it.extensionName.any { extension == "#$it" } }
             if (parsed == null) {
                 TypeValidationException.errorUnknownExtension(extension)
             }
@@ -42,16 +42,10 @@ class ProgramVisitor : Program.Visitor<Unit, Unit> {
                 extensions,
             ),
         )
-        for (decl in p.listdecl_) {
-            if (decl !is DeclFun) continue
-            val argTypes = decl.listparamdecl_.map { StellaType.fromAst((it as AParamDecl).type_, context) }
-            val retType =
-                if (decl.returntype_ is SomeReturnType) StellaType.fromAst(
-                    decl.returntype_.type_,
-                    context
-                ) else StellaType.Unit
-            functions[decl.stellaident_] = StellaType.Fun(argTypes, retType)
-        }
+        functions += registerFunctions(p.listdecl_, context)
+
+        checkMain(functions)
+
         for (decl in p.listdecl_) {
             when (decl) {
                 is DeclFun -> visit(decl, context)
@@ -59,6 +53,37 @@ class ProgramVisitor : Program.Visitor<Unit, Unit> {
         }
 
         context.persistent.reconstruction.validate()
+
+        for ((type, slice) in context.persistent.postponedMatches) {
+            if (!slice.checkExhaustive(context, type.substitute(context.persistent.reconstruction))) {
+                TypeValidationException.errorNonexhaustiveMatchPatterns()
+            }
+        }
+    }
+
+    private fun registerFunctions(
+        declarations: List<Decl>,
+        context: FunctionContext
+    ): Map<String, StellaType> {
+        val result = hashMapOf<String, StellaType.Fun>()
+        for (decl in declarations) {
+            if (decl !is DeclFun) continue
+            val argTypes = decl.listparamdecl_.map { StellaType.fromAst((it as AParamDecl).type_, context) }
+            val retType =
+                if (decl.returntype_ is SomeReturnType) StellaType.fromAst(
+                    decl.returntype_.type_,
+                    context
+                ) else StellaType.Unit
+            result[decl.stellaident_] = StellaType.Fun(argTypes, retType)
+        }
+
+        return result
+    }
+
+
+    private fun checkMain(functions: Map<String, StellaType>) {
+        functions["main"] ?: TypeValidationException.errorMissingMain()
+
     }
 
     private sealed class ExceptionType(val type: StellaType) {
@@ -79,9 +104,9 @@ class ProgramVisitor : Program.Visitor<Unit, Unit> {
             }
             if (decl is DeclExceptionVariant) {
                 val tt = if (r !is ExceptionType.OpenVariant) {
-                    listOf(decl.stellaident_ to StellaType.fromAst(decl.type_, emptyContext))
+                    mapOf(decl.stellaident_ to StellaType.fromAst(decl.type_, emptyContext))
                 } else {
-                    r.t.members + listOf(decl.stellaident_ to StellaType.fromAst(decl.type_, emptyContext))
+                    r.t.members + mapOf(decl.stellaident_ to StellaType.fromAst(decl.type_, emptyContext))
                 }
                 r = ExceptionType.OpenVariant(StellaType.Variant(tt))
             }
@@ -92,6 +117,16 @@ class ProgramVisitor : Program.Visitor<Unit, Unit> {
 
     fun visit(p: DeclFun, arg: FunctionContext) {
         tcAssert(p.listparamdecl_.size.let { it == 0 || it == 1 }, "function can accept only one or zero args")
+
+        val localFunctions = registerFunctions(p.listdecl_, arg)
+        if (localFunctions.isNotEmpty()) {
+            arg.checkExtension(StellaExtension.NESTED_FUNCTION_DECLARATIONS)
+            for (decl in p.listdecl_) {
+                decl as? DeclFun ?: continue
+                visit(decl, arg)
+            }
+        }
+
         val newVars = p.listparamdecl_.associate {
             it as AParamDecl
             it.stellaident_ to StellaType.Companion.fromAst(it.type_, arg)
@@ -99,7 +134,7 @@ class ProgramVisitor : Program.Visitor<Unit, Unit> {
 
         val expectedType =
             if (p.returntype_ is SomeReturnType) StellaType.fromAst(p.returntype_.type_, arg) else StellaType.Unit
-        val context = arg.enterFunction(newVars, expectedType)
+        val context = arg.enterFunction(newVars + localFunctions, expectedType)
 
         val visitor = ExprVisitor()
 

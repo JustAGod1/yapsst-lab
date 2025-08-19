@@ -30,8 +30,15 @@ enum class StellaExceptionCode {
     ERROR_NONEXHAUSTIVE_MATCH_PATTERNS,
     ERROR_UNEXPECTED_PATTERN_FOR_TYPE,
     ERROR_DUPLICATE_RECORD_FIELDS,
+    ERROR_DUPLICATE_RECORD_PATTERN_FIELDS,
     ERROR_DUPLICATE_RECORD_TYPE_FIELDS,
     ERROR_DUPLICATE_VARIANT_TYPE_FIELDS,
+    ERROR_AMBIGUOUS_PATTERN_TYPE,
+    ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL,
+    ERROR_MISSING_DATA_FOR_LABEL,
+    ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN,
+    ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN,
+
 
     // Second Stage
     ERROR_EXCEPTION_TYPE_NOT_DECLARED,
@@ -58,7 +65,7 @@ class TypeValidationException private constructor(
     message: String
 ) : Exception(code.name + "\n" + message) {
     companion object {
-        private fun make(code: StellaExceptionCode, msg: String?): Nothing {
+        fun make(code: StellaExceptionCode, msg: String?): Nothing {
             throw TypeValidationException(
                 code, (msg ?: "no message")
             )
@@ -77,7 +84,7 @@ class TypeValidationException private constructor(
         // Stage 1
         fun errorMissingMain(): Nothing = make(StellaExceptionCode.ERROR_MISSING_MAIN, null)
         fun errorUndefinedVariable(): Nothing = make(StellaExceptionCode.ERROR_UNDEFINED_VARIABLE, null)
-        fun errorUnexpectedTypeForExpression(expr: Expr, expected: StellaType, actual: StellaType): Nothing =
+        fun errorUnexpectedTypeForExpression(expr: Expr?, expected: StellaType, actual: StellaType): Nothing =
             make(StellaExceptionCode.ERROR_UNEXPECTED_TYPE_FOR_EXPRESSION,
                 """Expression: $expr
                     |Expected type: $expected
@@ -98,18 +105,25 @@ class TypeValidationException private constructor(
         fun errorMissingRecordFields(): Nothing = make(StellaExceptionCode.ERROR_MISSING_RECORD_FIELDS, null)
         fun errorUnexpectedRecordFields(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_RECORD_FIELDS, null)
         fun errorUnexpectedFieldAccess(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_FIELD_ACCESS, null)
-        fun errorUnexpectedVariantLabel(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_VARIANT_LABEL, null)
+        fun errorUnexpectedVariantLabel(labelName: String): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_VARIANT_LABEL, "Unexpected label name: $labelName")
         fun errorTupleIndexOutOfBounds(): Nothing = make(StellaExceptionCode.ERROR_TUPLE_INDEX_OUT_OF_BOUNDS, null)
         fun errorUnexpectedTupleLength(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_TUPLE_LENGTH, null)
         fun errorAmbiguousSumType(): Nothing = make(StellaExceptionCode.ERROR_AMBIGUOUS_SUM_TYPE, null)
         fun errorAmbiguousVariantType(): Nothing = make(StellaExceptionCode.ERROR_AMBIGUOUS_VARIANT_TYPE, null)
+        fun errorAmbiguousPatternType(): Nothing = make(StellaExceptionCode.ERROR_AMBIGUOUS_PATTERN_TYPE, null)
         fun errorAmbiguousList(): Nothing = make(StellaExceptionCode.ERROR_AMBIGUOUS_LIST, null)
         fun errorIllegalEmptyMatching(): Nothing = make(StellaExceptionCode.ERROR_ILLEGAL_EMPTY_MATCHING, null)
         fun errorNonexhaustiveMatchPatterns(): Nothing = make(StellaExceptionCode.ERROR_NONEXHAUSTIVE_MATCH_PATTERNS, null)
         fun errorUnexpectedPatternForType(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_PATTERN_FOR_TYPE, null)
+        fun errorDuplicateRecordPatternFields(duplicated: String): Nothing = make(StellaExceptionCode.ERROR_DUPLICATE_RECORD_PATTERN_FIELDS, "Duplicated: $duplicated")
         fun errorDuplicateRecordFields(): Nothing = make(StellaExceptionCode.ERROR_DUPLICATE_RECORD_FIELDS, null)
         fun errorDuplicateRecordTypeFields(): Nothing = make(StellaExceptionCode.ERROR_DUPLICATE_RECORD_TYPE_FIELDS, null)
         fun errorDuplicateVariantTypeFields(): Nothing = make(StellaExceptionCode.ERROR_DUPLICATE_VARIANT_TYPE_FIELDS, null)
+
+        fun errorUnexpectedDataForNullaryLabel(name: String): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL, name)
+        fun errorMissingDataForLabel(name: String): Nothing = make(StellaExceptionCode.ERROR_MISSING_DATA_FOR_LABEL, name)
+        fun errorUnexpectedNonNullaryVariantPattern(name: String): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN, name)
+        fun errorUnexpectedNullaryVariantPattern(name: String): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN, name)
 
         // Stage 2
         fun errorExceptionTypeNotDeclared(): Nothing = make(StellaExceptionCode.ERROR_EXCEPTION_TYPE_NOT_DECLARED, null)

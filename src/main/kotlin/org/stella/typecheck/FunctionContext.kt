@@ -1,5 +1,6 @@
 package org.stella.typecheck
 
+import org.stella.typecheck.matching.MatchingSlice
 import org.syntax.stella.Absyn.Expr
 import org.syntax.stella.Absyn.TypeAuto
 
@@ -16,6 +17,7 @@ class FunctionContext(
         val exceptionType: StellaType?,
         val extensions: Set<StellaExtension>,
     ) {
+        val postponedMatches = arrayListOf<Pair<StellaType, MatchingSlice>>()
         val reconstruction = ReconstructionContext()
     }
 
@@ -45,17 +47,37 @@ class FunctionContext(
 
     fun checkExtension(extension: StellaExtension) {
         if (!hasExtension(extension)) {
-            TypeValidationException.errorExtensionIsDisabled(extension.extensionName)
+            TypeValidationException.errorExtensionIsDisabled(extension.extensionName.first())
         }
     }
 
 
-    fun cmpTypesOrAddConstraint(expr: Expr, expected: StellaType, actual: StellaType) {
+    fun cmpTypesOrAddConstraint(expr: Expr?, expected: StellaType, actual: StellaType) {
         if (expected == actual) return
-        if (hasExtension(StellaExtension.STRUCTURAL_SUBTYPING) && expected.isAssignableFrom(actual))
-            return
+
+        if (hasExtension(StellaExtension.STRUCTURAL_SUBTYPING)) {
+            if (expected.isAssignableFrom(actual)) return
+            else TypeValidationException.errorUnexpectedSubtype()
+        }
 
         if (!expected.hasAuto && !actual.hasAuto) {
+            if (actual.javaClass != expected.javaClass) {
+                if (actual is StellaType.Fun) {
+                    TypeValidationException.errorUnexpectedLambda()
+                }
+                if (actual is StellaType.Tuple) {
+                    TypeValidationException.errorUnexpectedTuple()
+                }
+                if (actual is StellaType.Record) {
+                    TypeValidationException.errorUnexpectedRecord()
+                }
+                if (actual is StellaType.List) {
+                    TypeValidationException.errorUnexpectedList()
+                }
+                if (actual is StellaType.Sum) {
+                    TypeValidationException.errorUnexpectedInjection()
+                }
+            }
             TypeValidationException.errorUnexpectedTypeForExpression(expr, expected, actual)
         }
 

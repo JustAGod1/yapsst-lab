@@ -1,5 +1,9 @@
 package org.stella
 
+import org.junit.jupiter.api.DynamicContainer
+import org.junit.jupiter.api.DynamicNode
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -30,15 +34,8 @@ internal class RepoTests {
         System.setIn(original)
     }
 
-    @ParameterizedTest(name = "{index} Typechecking ill-typed program {0}")
-    @MethodSource("illTypedPathStream")
-    @Throws(
-        IOException::class,
-        Exception::class
-    )
-    fun testIllTyped(input: Pair<StellaExceptionCode, Path>) {
-        val expectedCode = input.first
-        val filepath = input.second
+    private fun testIllTyped(expectedCodeStr: String, filepath: Path) {
+        val expectedCode = StellaExceptionCode.valueOf(expectedCodeStr)
         println(filepath.toUri())
         val original = System.`in`
         val fips = FileInputStream(filepath.toFile())
@@ -50,6 +47,27 @@ internal class RepoTests {
         System.setIn(original)
     }
 
+    private fun createIllTest(name: String, filepath: Path): DynamicTest {
+        return DynamicTest.dynamicTest(
+            filepath.name
+        ) {
+            testIllTyped(name, filepath)
+        }
+    }
+
+    @TestFactory
+    fun illTyped(): List<DynamicNode> {
+        val codeFolders = Files.list(Paths.get(BAD_TESTS))
+
+        return codeFolders.map { codeFolder ->
+            val name = codeFolder.name
+            val nodes = Files.list(codeFolder).map {
+                createIllTest(name, it)
+            }
+            DynamicContainer.dynamicContainer(name, nodes)
+        }.toList()
+    }
+
     companion object {
         private const val BASE_DIR = "third_party/stella-tests"
         private const val OK_TESTS = "$BASE_DIR/ok"
@@ -58,17 +76,6 @@ internal class RepoTests {
         @JvmStatic
         fun wellTypedPathStream(): Stream<Path> = getFilesStream(OK_TESTS)
 
-        @JvmStatic
-        fun illTypedPathStream(): Stream<Pair<StellaExceptionCode, Path>> {
-            return Files.list(Paths.get(BAD_TESTS))
-                .filter {
-                    StellaExceptionCode.values().any { code -> it.name == code.name }
-                }
-                .flatMap {
-                    val code = StellaExceptionCode.valueOf(it.name)
-                    Files.list(it).map { code to it }
-                }.toList().stream()
-        }
 
         private fun getFilesStream(path: String) = Files.list(Paths.get(path))
     }

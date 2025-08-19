@@ -4,8 +4,9 @@ import org.stella.typecheck.FunctionContext
 import org.stella.typecheck.StellaExtension
 import org.stella.typecheck.StellaType
 import org.stella.typecheck.TypeValidationException
+import org.stella.typecheck.matching.MatchingSlice
+import org.stella.typecheck.matching.PatternModel
 import org.syntax.stella.Absyn.ABinding
-import org.syntax.stella.Absyn.ALabelledPattern
 import org.syntax.stella.Absyn.AMatchCase
 import org.syntax.stella.Absyn.AParamDecl
 import org.syntax.stella.Absyn.APatternBinding
@@ -47,29 +48,14 @@ import org.syntax.stella.Absyn.Match
 import org.syntax.stella.Absyn.MatchCase
 import org.syntax.stella.Absyn.Multiply
 import org.syntax.stella.Absyn.NatRec
-import org.syntax.stella.Absyn.NoPatternData
 import org.syntax.stella.Absyn.NotEqual
 import org.syntax.stella.Absyn.Panic
 import org.syntax.stella.Absyn.Pattern
-import org.syntax.stella.Absyn.PatternCons
-import org.syntax.stella.Absyn.PatternFalse
-import org.syntax.stella.Absyn.PatternInl
-import org.syntax.stella.Absyn.PatternInr
-import org.syntax.stella.Absyn.PatternInt
-import org.syntax.stella.Absyn.PatternList
-import org.syntax.stella.Absyn.PatternRecord
-import org.syntax.stella.Absyn.PatternSucc
-import org.syntax.stella.Absyn.PatternTrue
-import org.syntax.stella.Absyn.PatternTuple
-import org.syntax.stella.Absyn.PatternUnit
-import org.syntax.stella.Absyn.PatternVar
-import org.syntax.stella.Absyn.PatternVariant
 import org.syntax.stella.Absyn.Pred
 import org.syntax.stella.Absyn.Record
 import org.syntax.stella.Absyn.Ref
 import org.syntax.stella.Absyn.Sequence
 import org.syntax.stella.Absyn.SomeExprData
-import org.syntax.stella.Absyn.SomePatternData
 import org.syntax.stella.Absyn.Subtract
 import org.syntax.stella.Absyn.Succ
 import org.syntax.stella.Absyn.Tail
@@ -93,9 +79,9 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
         p: If,
         arg: FunctionContext
     ): StellaType? {
-        val condType = p.expr_1.niceVisit(arg, null)
+        val condType = p.expr_1.niceVisit(arg, StellaType.Bool)
         arg.cmpTypesOrAddConstraint(p.expr_1, StellaType.Bool, condType)
-        val leftType = p.expr_2.niceVisit(arg, null)
+        val leftType = p.expr_2.niceVisit(arg, arg.expectedType)
         val rightType = p.expr_3.niceVisit(arg, leftType)
 
         arg.cmpTypesOrAddConstraint(p.expr_3, leftType, rightType)
@@ -185,106 +171,26 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
     ): StellaType? {
         arg.checkExtension(StellaExtension.VARIANTS)
         if (arg.expectedType !is StellaType.Variant) TypeValidationException.errorAmbiguousVariantType()
-        val hint = arg.expectedType.members.find { it.first == p.stellaident_ }
-        if (hint == null) TypeValidationException.errorUnexpectedVariantLabel()
+        val hint = arg.expectedType.members[p.stellaident_]
+        if (hint == null) TypeValidationException.errorUnexpectedVariantLabel(p.stellaident_)
 
         val expr = if (p.exprdata_ is SomeExprData) p.exprdata_.expr_ else null
-        if ((hint.second == null) != (expr == null)) {
+        if ((hint == null) != (expr == null)) {
             TypeValidationException.errorUnexpectedVariant()
         }
 
         if (expr != null) {
-            val t = expr.niceVisit(arg, hint.second)
-            arg.cmpTypesOrAddConstraint(expr, hint.second!!, t)
+            val t = expr.niceVisit(arg, hint)
+            arg.cmpTypesOrAddConstraint(expr, hint, t)
         }
 
         return arg.expectedType
     }
 
     private fun FunctionContext.checkPattern(inputType: StellaType, pattern: Pattern): Map<String, StellaType> {
-        this.checkExtension(StellaExtension.LET_BINDINGS)
-        return when {
-            pattern is PatternVar -> mapOf(pattern.stellaident_ to inputType)
-            inputType is StellaType.Variant? && pattern is PatternVariant -> {
-                this.checkExtension(StellaExtension.VARIANTS)
-                val vt = inputType.members.find { (a, _) -> a == pattern.stellaident_ }
-                    ?: TypeValidationException.errorUnexpectedPatternForType()
-                when (pattern.patterndata_) {
-                    is NoPatternData -> emptyMap()
-                    is SomePatternData -> {
-                        if (vt.second == null) TypeValidationException.errorUnexpectedPatternForType()
-                        checkPattern(vt.second!!, pattern.patterndata_.pattern_)
-                    }
-
-                    else -> error("WTF")
-                }
-            }
-
-            inputType is StellaType.Sum && pattern is PatternInl -> {
-                this.checkExtension(StellaExtension.SUM_TYPES)
-                checkPattern(inputType.a, pattern.pattern_)
-            }
-
-            inputType is StellaType.Sum && pattern is PatternInr -> {
-                this.checkExtension(StellaExtension.SUM_TYPES)
-                checkPattern(inputType.b, pattern.pattern_)
-            }
-
-            inputType is StellaType.Unit && pattern is PatternUnit -> {
-                this.checkExtension(StellaExtension.UNIT_TYPE)
-                emptyMap()
-            }
-
-            inputType is StellaType.Bool && (pattern is PatternFalse || pattern is PatternTrue) -> {
-                emptyMap()
-            }
-
-            inputType is StellaType.List && (pattern is PatternList) -> {
-                val bindings = pattern.listpattern_.map { checkPattern(inputType.type, it) }
-                val r = hashMapOf<String, StellaType>()
-                for (datum in bindings) {
-                    for ((k, v) in datum) {
-                        r[k] = v
-                    }
-                }
-                r
-            }
-
-            inputType is StellaType.List && (pattern is PatternCons) -> {
-                checkPattern(inputType.type, pattern.pattern_1) + checkPattern(inputType, pattern.pattern_2)
-            }
-
-            inputType is StellaType.Nat && (pattern is PatternInt) -> {
-                emptyMap()
-            }
-
-            inputType is StellaType.Nat && (pattern is PatternSucc) -> {
-                checkPattern(inputType, pattern.pattern_)
-            }
-            inputType is StellaType.Record && (pattern is PatternRecord) -> {
-                val result = hashMapOf<String, StellaType>()
-                for (labelledPattern in pattern.listlabelledpattern_) {
-                    labelledPattern as ALabelledPattern
-                    val t = inputType.members[labelledPattern.stellaident_] ?: TypeValidationException.errorMissingRecordFields()
-
-                    result += checkPattern(t, labelledPattern.pattern_)
-                }
-                result
-            }
-            inputType is StellaType.Tuple && (pattern is PatternTuple) -> {
-                val result = hashMapOf<String, StellaType>()
-
-                if (pattern.listpattern_.size > inputType.members.size) TypeValidationException.errorUnexpectedTupleLength()
-
-                for ((i, p) in pattern.listpattern_.withIndex()) {
-                    result += checkPattern(inputType.members[i], p)
-                }
-
-                result
-            }
-
-            else -> TypeValidationException.errorUnexpectedPatternForType()
-        }
+        val p = org.stella.typecheck.matching.PatternModel.fromAst(pattern, this)
+        p.checkConforms(this, inputType)
+        return p.createBindings(this, inputType).toMap()
     }
 
     override fun visit(
@@ -314,13 +220,20 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
         var lastType: StellaType? = null
         for (case in cases) {
             val newVariables = arg.checkPattern(inputType, (case as AMatchCase).pattern_)
-            val t = case.expr_.niceVisit(arg.withVariables(newVariables), arg.expectedType)
+            val t = case.expr_.niceVisit(arg.withVariables(newVariables), lastType ?: arg.expectedType)
             if (lastType == null) {
                 lastType = t
             } else {
                 arg.cmpTypesOrAddConstraint(case.expr_, lastType, t)
             }
         }
+
+        arg.persistent.postponedMatches += inputType to MatchingSlice(
+            cases.map {
+                it as AMatchCase
+                PatternModel.fromAst(it.pattern_, arg)
+            }
+        )
 
         return lastType!!
 
@@ -347,7 +260,8 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
             if (expectedType != null) {
                 return StellaType.List(expectedType)
             } else {
-                TypeValidationException.errorAmbiguousList()
+                if (arg.expectedType == null) TypeValidationException.errorAmbiguousList()
+                else TypeValidationException.errorUnexpectedList()
             }
         }
         var lastType: StellaType? = null
@@ -437,7 +351,7 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
             TypeValidationException.errorNotARecord()
         }
 
-        return t.members.entries.find { it.key != p.stellaident_ }?.value
+        return t.members.entries.find { it.key == p.stellaident_ }?.value
             ?: TypeValidationException.errorUnexpectedFieldAccess()
     }
 
@@ -445,7 +359,6 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
         p: DotTuple,
         arg: FunctionContext
     ): StellaType? {
-        arg.checkExtension(StellaExtension.PAIRS)
         arg.checkExtension(StellaExtension.TUPLES)
         val t = p.expr_.niceVisit(arg, null)
         if (t !is StellaType.Tuple) {
@@ -520,7 +433,7 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
         arg: FunctionContext
     ): StellaType? {
         arg.checkExtension(StellaExtension.LISTS)
-        val t = p.niceVisit(arg, arg.expectedType)
+        val t = p.expr_.niceVisit(arg, arg.expectedType)
         if (t !is StellaType.List) TypeValidationException.errorNotAList()
 
         return StellaType.Bool
@@ -549,7 +462,7 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
         arg: FunctionContext
     ): StellaType {
         arg.checkExtension(StellaExtension.LISTS)
-        return checkListUnaryOp(p.expr_, arg)
+        return StellaType.List(checkListUnaryOp(p.expr_, arg))
     }
 
     private fun checkInj(
@@ -570,10 +483,7 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
         } else if (arg.expectedType.hasAuto) {
             arg.persistent.reconstruction.atom() to null
         } else {
-            val eType = expr.niceVisit(arg, null)
-            val real = if (left) StellaType.Sum(eType, StellaType.Bot)
-            else StellaType.Sum(StellaType.Bot, eType)
-            TypeValidationException.errorUnexpectedTypeForExpression(p, arg.expectedType, real)
+            TypeValidationException.errorUnexpectedInjection()
         }
 
         val myType = expr.niceVisit(arg, expectedMe)
@@ -725,6 +635,17 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
         p: LetRec,
         arg: FunctionContext
     ): StellaType {
+        val variables = hashMapOf<String, StellaType>()
+        for (binding in p.listpatternbinding_) {
+            binding as APatternBinding
+            val currentContext = arg.withVariables(variables)
+            val pat = PatternModel.fromAst(binding.pattern_, currentContext)
+            variables += pat.createBindingsLetrec(currentContext)
+            val calculatedType = binding.expr_.niceVisit(arg.withVariables(variables), null)
+            arg.checkPattern(calculatedType, binding.pattern_)
+        }
+
+        return p.expr_.niceVisit(arg.withVariables(variables), arg.expectedType)
     }
 
     override fun visit(
@@ -749,10 +670,18 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
     }
 
     override fun visit(
-        p: TypeCast?,
-        arg: FunctionContext?
-    ): StellaType? {
-        TODO("Not yet implemented")
+        p: TypeCast,
+        arg: FunctionContext
+    ): StellaType {
+        arg.checkExtension(StellaExtension.TYPE_CAST)
+        arg.checkExtension(StellaExtension.STRUCTURAL_SUBTYPING)
+
+        val wideType = p.expr_.niceVisit(arg, null)
+        val narrowType = StellaType.fromAst(p.type_, arg)
+
+        arg.cmpTypesOrAddConstraint(p.expr_, wideType, narrowType)
+
+        return narrowType
     }
 
     override fun visit(
@@ -790,7 +719,7 @@ class ExprVisitor : Expr.Visitor<StellaType, FunctionContext> {
         arg.checkExtension(StellaExtension.EXCEPTIONS)
         if (arg.exceptionType == null) TypeValidationException.errorExceptionTypeNotDeclared()
         val t = p.expr_.niceVisit(arg, arg.exceptionType)
-        if (t != arg.exceptionType) TypeValidationException.errorUnexpectedTypeForExpression(
+        arg.cmpTypesOrAddConstraint(
             p.expr_,
             arg.exceptionType!!,
             t
