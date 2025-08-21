@@ -11,12 +11,7 @@ class CastPattern(
 ) : PatternModel() {
 
     private fun checkType(type: StellaType) {
-        if (type.isAssignableFrom(narrowType)) {
-            TypeValidationException.make(
-                StellaExceptionCode.ERROR_UNEXPECTED_TYPE_FOR_EXPRESSION,
-                "$type expected to be wider than $narrowType"
-            )
-        }
+        narrowType.checkAssignableFrom(type)
     }
 
     override fun checkConforms(context: FunctionContext, type: StellaType) {

@@ -1,6 +1,7 @@
 package org.stella.typecheck.matching
 
 import org.stella.typecheck.FunctionContext
+import org.stella.typecheck.StellaExceptionCode
 import org.stella.typecheck.StellaType
 import org.stella.typecheck.TypeValidationException
 
@@ -10,13 +11,19 @@ class VariantPattern(
 ) : PatternModel() {
 
     override fun checkConforms(context: FunctionContext, type: StellaType) {
-        TODO("Not yet implemented")
+        val t = calcInnerType(context, type)
+        if (t != null && pattern == null) {
+            TypeValidationException.errorUnexpectedNullaryVariantPattern(name)
+        }
+        if (t == null && pattern != null) {
+            TypeValidationException.errorUnexpectedNonNullaryVariantPattern(name)
+        }
     }
 
     private fun calcInnerType(context: FunctionContext, type: StellaType): StellaType? {
         val t = if (type is StellaType.Auto) {
             val tt = StellaType.Variant(
-                mapOf(
+                listOf(
                     name to pattern?.let { context.persistent.reconstruction.atom() }
                 )
             )
@@ -28,13 +35,13 @@ class VariantPattern(
         if (t !is StellaType.Variant) {
             TypeValidationException.errorUnexpectedTypeForExpression(
                 null,
-                StellaType.Variant(mapOf(name to StellaType.Unknown)),
+                StellaType.Variant(listOf(name to StellaType.Unknown)),
                 t
             )
         }
 
         if (name !in t.members) {
-            TypeValidationException.errorUnexpectedVariantLabel(name)
+            TypeValidationException.make(StellaExceptionCode.ERROR_UNEXPECTED_PATTERN_FOR_TYPE, null)
         }
         val entry = t.members[name]
 

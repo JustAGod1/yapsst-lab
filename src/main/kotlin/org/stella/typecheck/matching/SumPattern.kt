@@ -29,8 +29,7 @@ class SumPattern(
             type
         }
         if (t !is StellaType.Sum) {
-            TypeValidationException.errorUnexpectedTypeForExpression(
-                null,
+            TypeValidationException.errorUnexpectedPatternForType(
                 StellaType.Sum(StellaType.Unknown, StellaType.Unknown),
                 t
             )

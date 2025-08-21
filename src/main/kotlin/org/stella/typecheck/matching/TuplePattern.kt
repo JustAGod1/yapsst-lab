@@ -1,6 +1,7 @@
 package org.stella.typecheck.matching
 
 import org.stella.typecheck.FunctionContext
+import org.stella.typecheck.StellaExceptionCode
 import org.stella.typecheck.StellaType
 import org.stella.typecheck.TypeValidationException
 
@@ -35,7 +36,7 @@ class TuplePattern(
             )
         }
 
-        if (t.members.size != patterns.size) TypeValidationException.errorUnexpectedTupleLength()
+        if (t.members.size != patterns.size) TypeValidationException.make(StellaExceptionCode.ERROR_UNEXPECTED_PATTERN_FOR_TYPE, null)
 
         return t
     }

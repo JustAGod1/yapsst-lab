@@ -10,7 +10,6 @@ class MatchingSlice(
     private val unwrapped = entries.map { it.unwrap() }
 
     fun checkExhaustive(context: FunctionContext, type: StellaType): Boolean {
-        if (type.hasAuto) throw IllegalStateException("must be called after type reconstruction")
         if (entries.any { it is BindingPattern }) return true
 
         for (pat in entries) {
@@ -32,7 +31,9 @@ class MatchingSlice(
             is StellaType.Tuple -> checkTuple(context, type)
             is StellaType.Sum -> checkSum(context, type)
 
-            is StellaType.Auto -> throw IllegalStateException("WTF")
+            is StellaType.Auto -> false
+            is StellaType.ForAll -> false
+            is StellaType.Var -> false
             StellaType.Unknown -> throw IllegalStateException("WTF")
         }
     }
@@ -57,7 +58,8 @@ class MatchingSlice(
     private fun checkNat() : Boolean {
         val succs = entries.filterIsInstance<SuccPattern>()
         val lowest = succs.mapNotNull { it.lower() }.minOrNull() ?: return false
-        val constants = succs.mapNotNull { it.constant() }.toSet()
+        val constants = succs.mapNotNull { it.constant() }.toSet() +
+                entries.mapNotNull { (it as? NatPattern)?.value }
 
         return verifyRange(lowest, constants)
     }

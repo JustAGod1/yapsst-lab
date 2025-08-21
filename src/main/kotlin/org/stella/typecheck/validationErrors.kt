@@ -38,6 +38,9 @@ enum class StellaExceptionCode {
     ERROR_MISSING_DATA_FOR_LABEL,
     ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN,
     ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN,
+    ERROR_INCORRECT_ARITY_OF_MAIN,
+    ERROR_INCORRECT_NUMBER_OF_ARGUMENTS,
+    ERROR_UNEXPECTED_NUMBER_OF_PARAMETERS_IN_LAMBDA,
 
 
     // Second Stage
@@ -48,6 +51,7 @@ enum class StellaExceptionCode {
     ERROR_NOT_A_REFERENCE,
     ERROR_UNEXPECTED_MEMORY_ADDRESS,
     ERROR_UNEXPECTED_SUBTYPE,
+    ERROR_UNEXPECTED_REFERENCE,
 
     // Third Stage
     ERROR_OCCURS_CHECK_INFINITE_TYPE,
@@ -83,7 +87,7 @@ class TypeValidationException private constructor(
 
         // Stage 1
         fun errorMissingMain(): Nothing = make(StellaExceptionCode.ERROR_MISSING_MAIN, null)
-        fun errorUndefinedVariable(): Nothing = make(StellaExceptionCode.ERROR_UNDEFINED_VARIABLE, null)
+        fun errorUndefinedVariable(name: String): Nothing = make(StellaExceptionCode.ERROR_UNDEFINED_VARIABLE, name)
         fun errorUnexpectedTypeForExpression(expr: Expr?, expected: StellaType, actual: StellaType): Nothing =
             make(StellaExceptionCode.ERROR_UNEXPECTED_TYPE_FOR_EXPRESSION,
                 """Expression: $expr
@@ -102,7 +106,7 @@ class TypeValidationException private constructor(
         fun errorUnexpectedVariant(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_VARIANT, null)
         fun errorUnexpectedList(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_LIST, null)
         fun errorUnexpectedInjection(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_INJECTION, null)
-        fun errorMissingRecordFields(): Nothing = make(StellaExceptionCode.ERROR_MISSING_RECORD_FIELDS, null)
+        fun errorMissingRecordFields(name: String): Nothing = make(StellaExceptionCode.ERROR_MISSING_RECORD_FIELDS, name)
         fun errorUnexpectedRecordFields(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_RECORD_FIELDS, null)
         fun errorUnexpectedFieldAccess(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_FIELD_ACCESS, null)
         fun errorUnexpectedVariantLabel(labelName: String): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_VARIANT_LABEL, "Unexpected label name: $labelName")
@@ -114,11 +118,14 @@ class TypeValidationException private constructor(
         fun errorAmbiguousList(): Nothing = make(StellaExceptionCode.ERROR_AMBIGUOUS_LIST, null)
         fun errorIllegalEmptyMatching(): Nothing = make(StellaExceptionCode.ERROR_ILLEGAL_EMPTY_MATCHING, null)
         fun errorNonexhaustiveMatchPatterns(): Nothing = make(StellaExceptionCode.ERROR_NONEXHAUSTIVE_MATCH_PATTERNS, null)
-        fun errorUnexpectedPatternForType(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_PATTERN_FOR_TYPE, null)
+        fun errorUnexpectedPatternForType(expected: StellaType, actual: StellaType): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_PATTERN_FOR_TYPE, "Expected: $expected\nActual: $actual")
         fun errorDuplicateRecordPatternFields(duplicated: String): Nothing = make(StellaExceptionCode.ERROR_DUPLICATE_RECORD_PATTERN_FIELDS, "Duplicated: $duplicated")
         fun errorDuplicateRecordFields(): Nothing = make(StellaExceptionCode.ERROR_DUPLICATE_RECORD_FIELDS, null)
         fun errorDuplicateRecordTypeFields(): Nothing = make(StellaExceptionCode.ERROR_DUPLICATE_RECORD_TYPE_FIELDS, null)
         fun errorDuplicateVariantTypeFields(): Nothing = make(StellaExceptionCode.ERROR_DUPLICATE_VARIANT_TYPE_FIELDS, null)
+        fun errorIncorrectArityOfMain(): Nothing = make(StellaExceptionCode.ERROR_INCORRECT_ARITY_OF_MAIN, null)
+        fun errorIncorrectNumberOfArguments(): Nothing = make(StellaExceptionCode.ERROR_INCORRECT_NUMBER_OF_ARGUMENTS, null)
+        fun errorUnexpectedNumberOfParametersInLambda(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_NUMBER_OF_PARAMETERS_IN_LAMBDA, null)
 
         fun errorUnexpectedDataForNullaryLabel(name: String): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL, name)
         fun errorMissingDataForLabel(name: String): Nothing = make(StellaExceptionCode.ERROR_MISSING_DATA_FOR_LABEL, name)
@@ -132,13 +139,14 @@ class TypeValidationException private constructor(
         fun errorAmbiguousPanicType(): Nothing = make(StellaExceptionCode.ERROR_AMBIGUOUS_PANIC_TYPE, null)
         fun errorNotAReference(): Nothing = make(StellaExceptionCode.ERROR_NOT_A_REFERENCE, null)
         fun errorUnexpectedMemoryAddress(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_MEMORY_ADDRESS, null)
-        fun errorUnexpectedSubtype(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_SUBTYPE, null)
+        fun errorUnexpectedSubtype(expected: StellaType, actual: StellaType): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_SUBTYPE, "Expected: $expected\nActual: $actual")
+        fun errorUnexpectedReference(): Nothing = make(StellaExceptionCode.ERROR_UNEXPECTED_REFERENCE, null)
 
         // Stage 3
         fun errorOccursCheckInfiniteType(msg: String): Nothing = make(StellaExceptionCode.ERROR_OCCURS_CHECK_INFINITE_TYPE, msg)
         fun errorNotAGenericFunction(): Nothing = make(StellaExceptionCode.ERROR_NOT_A_GENERIC_FUNCTION, null)
         fun errorIncorrectNumberOfTypeArguments(): Nothing = make(StellaExceptionCode.ERROR_INCORRECT_NUMBER_OF_TYPE_ARGUMENTS, null)
-        fun errorUndefinedTypeVariable(): Nothing = make(StellaExceptionCode.ERROR_UNDEFINED_TYPE_VARIABLE, null)
+        fun errorUndefinedTypeVariable(name: String): Nothing = make(StellaExceptionCode.ERROR_UNDEFINED_TYPE_VARIABLE, name)
     }
 }
 

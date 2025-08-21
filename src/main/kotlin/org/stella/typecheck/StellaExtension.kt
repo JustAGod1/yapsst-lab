@@ -14,8 +14,11 @@ enum class StellaExtension(vararg val extensionName: String) {
     SUM_TYPES("sum-types"),
     LISTS("lists"),
     VARIANTS("variants"),
-    FIX_POINT_COMBINATOR("fix-point-combinator"),
+    FIX_POINT_COMBINATOR("fixpoint-combinator"),
     STRUCTURAL_PATTERNS("structural-patterns"),
+    MULTIPARAMETER_FUNCTIONS("multiparameter-functions"),
+    NULLARY_FUNCTIONS("nullary-functions"),
+
 
     SEQUENCE("sequencing"),
     REFERENCES("references"),

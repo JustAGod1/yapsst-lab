@@ -19,7 +19,7 @@ class RecordPattern(
 
     private fun calcType(context: FunctionContext, type: StellaType): StellaType.Record {
         val t = if (type is StellaType.Auto) {
-            val tt = StellaType.Record(entries.associate { (k, _) -> k to context.persistent.reconstruction.atom() })
+            val tt = StellaType.Record(entries.map { (k, _) -> k to context.persistent.reconstruction.atom() })
             context.persistent.reconstruction.applyConstraint(type, tt)
             tt
         } else {
@@ -28,7 +28,7 @@ class RecordPattern(
         if (t !is StellaType.Record) {
             TypeValidationException.errorUnexpectedTypeForExpression(
                 null,
-                StellaType.Record(entries.associate { (k, _) -> k to StellaType.Unknown }),
+                StellaType.Record(entries.map { (k, _) -> k to StellaType.Unknown }),
                 t
             )
         }
@@ -40,7 +40,7 @@ class RecordPattern(
         val t = calcType(context, type)
 
         for ((k, v) in entries) {
-            val that = t.members[k] ?: TypeValidationException.errorMissingRecordFields()
+            val that = t.members[k] ?: TypeValidationException.errorMissingRecordFields(k)
             v.checkConforms(context, that)
         }
     }
@@ -53,7 +53,7 @@ class RecordPattern(
 
         val result = arrayListOf<Pair<String, StellaType>>()
         for ((k, v) in entries) {
-            val that = t.members[k] ?: TypeValidationException.errorMissingRecordFields()
+            val that = t.members[k] ?: TypeValidationException.errorMissingRecordFields(k)
             result.addAll(v.createBindings(context, that))
         }
 

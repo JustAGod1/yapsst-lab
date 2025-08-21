@@ -1,6 +1,7 @@
 package org.stella.typecheck.matching
 
 import org.stella.typecheck.FunctionContext
+import org.stella.typecheck.StellaExceptionCode
 import org.stella.typecheck.StellaType
 
 class AscriptionPattern(
@@ -25,7 +26,12 @@ class AscriptionPattern(
             context.persistent.reconstruction.applyConstraint(type, ascription)
             ascription
         } else  {
-            context.cmpTypesOrAddConstraint(null, ascription, type)
+            context.cmpTypesOrAddConstraint(
+                null,
+                ascription,
+                type,
+                StellaExceptionCode.ERROR_UNEXPECTED_PATTERN_FOR_TYPE
+            )
             type
         }
 
